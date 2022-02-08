@@ -1,0 +1,6 @@
+__pycache__
+python-lib
+*.txt
+!requirements.txt
+*.py
+!index.py
