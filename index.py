@@ -224,7 +224,7 @@ def main() -> None:
         states={
             CHOOSING: [
                 MessageHandler(
-                    Filters.regex('^(Как в вам обращаться|Должность|Судно|Описание)$'), 
+                    Filters.regex('^(Как в вам обращаться|Должность|Судно|Описание проблемы)$'), 
                     regular_choice
                 ),
                 MessageHandler(
@@ -289,7 +289,7 @@ def main() -> None:
                     dop_recive,
                 ),
                 MessageHandler(
-                    Filters.regex('^(Как в вам обращаться|Должность|Судно|Описание)$'), 
+                    Filters.regex('^(Как в вам обращаться|Должность|Судно|Описание проблемы)$'), 
                     regular_choice
                 ),
                 MessageHandler(
