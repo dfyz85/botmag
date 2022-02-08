@@ -24,9 +24,9 @@ logger = logging.getLogger(__name__)
 CHOOSING, TYPING_REPLY, TYPING_CHOICE, TYPING_CONTACT, TYPING_DOP = range(5)
 
 reply_keyboard = [
-    ['Имя','Должность', 'Судно'],
-    ['Проблема', 'Описание', 'Доп. материалы'],
-    ['Контакты', 'Тип помощи','Отпарвить'],
+    ['Как в вам обращаться','Должность', 'Судно'],
+    ['Описание проблемы', 'Доп. материалы'],
+    ['Контакты для связи', 'Тип помощи','Отпарвить'],
 ]
 contact_keyboard = [
     ['Назад к проблеме'],
@@ -51,27 +51,35 @@ markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
 def facts_to_str(user_data: Dict[str, str]) -> str:
     """Helper function for formatting the gathered user info."""
+    if 'Dop_file' in user_data:
+        del user_data['Dop_file']
     facts = [f'{key} - {value}' for key, value in user_data.items()]
     return "\n".join(facts).join(['\n', '\n'])
 
 def start(update: Update, context: CallbackContext) -> int:
+    message = update.effective_message
     """Start the conversation and ask user for input."""
     try:
         login = context.user_data['login']
     except Exception as e:
         login = 'колега'
-
     update.message.reply_text(
-        f"Добрый день {login}!",
+        f"""Добрый день {login}!
+Вы воспользовались системой технической потдержки MAGwaters для любого вида судов.
+Для оформления заявки заполните нужные поля и нажмите "Отправить".
+Доп. материалы размеры одного файла не должны привышать 20 MB.""",
         reply_markup=markup,
     )
+    context.bot.delete_message(message.chat_id, message.message_id)
     return CHOOSING
 
 def regular_choice(update: Update, context: CallbackContext) -> int:
     """Ask the user for info about the selected predefined choice."""
+    message = update.effective_message
     text = update.message.text
     context.user_data['choice'] = text
     update.message.reply_text(f'Укажите {text.capitalize()}.')
+    context.bot.delete_message(message.chat_id, message.message_id)
     return TYPING_REPLY
 
 def custom_choice(update: Update, context: CallbackContext) -> int:
@@ -83,6 +91,7 @@ def custom_choice(update: Update, context: CallbackContext) -> int:
 
 def received_information(update: Update, context: CallbackContext) -> int:
     """Store info provided by user and ask for the next category."""
+    message = update.effective_message
     user_data = context.user_data
     text = update.message.text
     category = user_data['choice']
@@ -90,11 +99,13 @@ def received_information(update: Update, context: CallbackContext) -> int:
     del user_data['choice']
     # del user_data['login']
     update.message.reply_text(
-        "Да! Для информации вы указали следущию информацию"
-        f"{facts_to_str(user_data)} \nУкажите больше или измените если ошиблись."
-        "\nДля завершения заявки нашмите 'Отправить'",
+        f"""Для информации вы указали следущию информацию
+{facts_to_str(user_data)}
+Укажите больше или измените если ошиблись.
+Для завершения заявки нашмите "Отправить" """,
         reply_markup=markup,
     )
+    context.bot.delete_message(message.chat_id, message.message_id)
     return CHOOSING
 
 def done(update: Update, context: CallbackContext) -> int:
@@ -124,35 +135,42 @@ def login(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(update.message.text)
 
 def contact_choice(update: Update, context: CallbackContext) -> int:
+    message = update.effective_message
     update.message.reply_text(
         f"Добавте контактную информацию для обратной связи:",
         reply_markup=ReplyKeyboardMarkup(contact_keyboard, one_time_keyboard=True),
     )
+    context.bot.delete_message(message.chat_id, message.message_id)
     return TYPING_CONTACT
 
 def contact_recive(update: Update, context: CallbackContext) -> int:
+    message = update.effective_message
     text = update.message.text
     context.user_data['choice'] = text
     update.message.reply_text(f'Укажите ваш {text.lower()}')
+    context.bot.delete_message(message.chat_id, message.message_id)
     return TYPING_REPLY
 
 def back_to_main_choice(update: Update, context: CallbackContext) -> int:
     user_data = context.user_data
     update.message.reply_text(
-        "Да! Для информации вы указали следущию информацию"
-        f"{facts_to_str(user_data)}\n Укажите больше или измените если ошиблись."
-        "Для завершения заявки нашмите 'Отправить'",
+         f"""Для информации вы указали следущию информацию
+{facts_to_str(user_data)}
+Укажите больше или измените если ошиблись.
+Для завершения заявки нашмите "Отправить" """,
         reply_markup=markup,
     )
     return CHOOSING
 
 def help_choice(update: Update, context: CallbackContext) -> int:
+    message = update.effective_message
     text = update.message.text
     context.user_data['choice'] = text 
     update.message.reply_text(
         f"Добавте контактную информацию для обратной связи:",
         reply_markup=ReplyKeyboardMarkup(problem_keyboard, one_time_keyboard=True),
     )
+    context.bot.delete_message(message.chat_id, message.message_id)
     return TYPING_REPLY
 
 def problem_choice(update: Update, context: CallbackContext) -> int:
@@ -172,7 +190,6 @@ def dop_choice(update: Update, context: CallbackContext) -> int:
         reply_markup=ReplyKeyboardMarkup([], input_field_placeholder='Добавте документ', one_time_keyboard=True)
     )
     return TYPING_DOP
-
 
 def dop_recive(update: Update, context: CallbackContext) -> None:
     chat = '-1001698024013'
@@ -207,15 +224,11 @@ def main() -> None:
         states={
             CHOOSING: [
                 MessageHandler(
-                    Filters.regex('^(Имя|Должность|Судно|Описание)$'), 
+                    Filters.regex('^(Как в вам обращаться|Должность|Судно|Описание)$'), 
                     regular_choice
                 ),
                 MessageHandler(
-                    Filters.regex('^Проблема$'), 
-                    regular_choice
-                ),
-                MessageHandler(
-                    Filters.regex('^Контакты$'), 
+                    Filters.regex('^Контакты для связи$'), 
                     contact_choice
                 ),
                 MessageHandler(
@@ -268,7 +281,15 @@ def main() -> None:
                     dop_recive,
                 ),
                 MessageHandler(
-                    Filters.regex('^(Имя|Должность|Судно|Описание)$'), 
+                    Filters.photo, 
+                    dop_recive,
+                ),
+                MessageHandler(
+                    Filters.video, 
+                    dop_recive,
+                ),
+                MessageHandler(
+                    Filters.regex('^(Как в вам обращаться|Должность|Судно|Описание)$'), 
                     regular_choice
                 ),
                 MessageHandler(
@@ -276,7 +297,7 @@ def main() -> None:
                     regular_choice
                 ),
                 MessageHandler(
-                    Filters.regex('^Контакты$'), 
+                    Filters.regex('^Контакты для связи$'), 
                     contact_choice
                 ),
                 MessageHandler(
